@@ -26,6 +26,12 @@ class MonitorResource extends JsonResource
             'last_checked_at' => $this->last_checked_at?->toIso8601String(),
             'next_check_at' => $this->next_check_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
+            'links' => [
+                'update' => route('monitors.update', $this->id),
+                'pause' => route('monitors.pause', $this->id),
+                'resume' => route('monitors.resume', $this->id),
+                'destroy' => route('monitors.destroy', $this->id),
+            ],
         ];
     }
 }

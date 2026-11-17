@@ -45,6 +45,10 @@ class HandleInertiaRequests extends Middleware
                 'register' => route('register'),
                 'logout' => route('logout'),
                 'dashboard' => route('dashboard'),
+                'monitors' => route('monitors.store'),
+            ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
             ],
             //
         ];

@@ -1,34 +1,97 @@
 <script setup>
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { reactive, ref, watch } from 'vue';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import AppLayout from '../Layouts/AppLayout.vue';
+import MonitorForm from '../Components/MonitorForm.vue';
+import MonitorTable from '../Components/MonitorTable.vue';
+import StatCard from '../Components/StatCard.vue';
 
+const props = defineProps({
+    monitors: { type: Object, required: true },
+    stats: { type: Object, required: true },
+    filters: { type: Object, required: true },
+});
 const page = usePage();
-const logoutForm = useForm({});
+const formOpen = ref(false);
+const editing = ref(null);
+const actionForm = useForm({});
+const filters = reactive({ ...props.filters });
 
-function logout() {
-    logoutForm.post(page.props.urls.logout);
+watch(() => props.filters, (value) => Object.assign(filters, value));
+
+function openForm(monitor = null) {
+    editing.value = monitor;
+    formOpen.value = true;
+}
+
+function closeForm() {
+    formOpen.value = false;
+    editing.value = null;
+}
+
+function applyFilters() {
+    router.get(page.props.urls.dashboard, filters, { preserveState: true, preserveScroll: true, replace: true });
+}
+
+function resetFilters() {
+    Object.assign(filters, { search: '', status: '' });
+    applyFilters();
+}
+
+function toggleMonitor(monitor) {
+    actionForm.patch(monitor.is_paused ? monitor.links.resume : monitor.links.pause, { preserveScroll: true });
+}
+
+function deleteMonitor(monitor) {
+    if (!window.confirm(`Delete "${monitor.name}" and all its check history? This cannot be undone.`)) return;
+    actionForm.delete(monitor.links.destroy, {
+        preserveScroll: true,
+        onSuccess: () => { if (editing.value?.id === monitor.id) closeForm(); },
+    });
 }
 </script>
 
 <template>
-    <Head title="Dashboard" />
-    <div class="min-h-screen">
-        <header class="border-b border-slate-800 bg-slate-900">
-            <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-5">
-                <span class="text-xl font-bold tracking-tight text-emerald-400">DevPulse</span>
-                <form class="flex items-center gap-4" @submit.prevent="logout">
-                    <span class="text-sm text-slate-300">{{ page.props.auth.user.name }}</span>
-                    <button :disabled="logoutForm.processing" class="rounded-lg border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-50">Sign out</button>
-                </form>
+    <Head title="Monitors" />
+    <AppLayout>
+        <div class="mb-8 flex flex-wrap items-start justify-between gap-4">
+            <div>
+                <p class="text-sm font-medium text-emerald-400">YOUR WORKSPACE</p>
+                <h1 class="mt-2 text-3xl font-semibold">API monitors</h1>
+                <p class="mt-2 text-sm text-slate-400">Manage endpoints and review their latest recorded health.</p>
             </div>
-        </header>
-        <main class="mx-auto max-w-6xl px-6 py-12">
-            <p class="text-sm font-medium text-emerald-400">YOUR WORKSPACE</p>
-            <h1 class="mt-3 text-3xl font-semibold">Welcome, {{ page.props.auth.user.name }}</h1>
-            <p class="mt-3 max-w-2xl text-slate-400">Your account is ready. This is the foundation for your API monitoring dashboard.</p>
-            <section class="mt-10 rounded-2xl border border-dashed border-slate-700 bg-slate-900 p-8">
-                <h2 class="text-lg font-semibold">Monitor management is next</h2>
-                <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-400">The monitor backend is implemented. In the next phase, we will connect reusable Vue forms, status badges, and a monitor table to your workspace. No health checks are running yet.</p>
-            </section>
-        </main>
-    </div>
+            <button :disabled="actionForm.processing" class="rounded-lg bg-emerald-400 px-5 py-2.5 font-semibold text-slate-950 hover:bg-emerald-300 disabled:opacity-50" @click="openForm()">Add monitor</button>
+        </div>
+
+        <dl class="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="Total monitors" :value="stats.total" detail="All monitors, including paused" />
+            <StatCard label="Up" :value="stats.up" detail="Active monitors last recorded as up" />
+            <StatCard label="Down" :value="stats.down" detail="Active monitors last recorded as down" />
+            <StatCard label="Avg response time" :value="stats.average_response_time_ms === null ? '—' : `${stats.average_response_time_ms} ms`" detail="Latest measured responses of active monitors" />
+        </dl>
+        <p class="mb-8 text-xs text-slate-400">{{ stats.unknown }} active with unknown status · {{ stats.paused }} paused. Statistics cover all your monitors, regardless of filters.</p>
+        <p class="mb-8 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-400">Scheduled checks, Check Now, charts, and automatic refresh are not enabled yet. New monitors remain unknown until checks are implemented.</p>
+
+        <MonitorForm v-if="formOpen" :key="editing?.id ?? 'new'" :monitor="editing" @saved="closeForm" @cancel="closeForm" />
+
+        <form class="mb-5 flex flex-wrap items-end gap-3" role="search" @submit.prevent="applyFilters">
+            <div class="min-w-48 flex-1">
+                <label for="monitor-search" class="mb-2 block text-sm text-slate-300">Search endpoints</label>
+                <input id="monitor-search" v-model="filters.search" type="search" maxlength="100" placeholder="Name or URL" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 focus:ring-2 focus:ring-emerald-400" />
+            </div>
+            <div>
+                <label for="status-filter" class="mb-2 block text-sm text-slate-300">Status</label>
+                <select id="status-filter" v-model="filters.status" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 focus:ring-2 focus:ring-emerald-400">
+                    <option value="">All statuses</option>
+                    <option value="up">Up</option>
+                    <option value="down">Down</option>
+                    <option value="unknown">Unknown</option>
+                    <option value="paused">Paused</option>
+                </select>
+            </div>
+            <button type="submit" class="rounded-lg border border-slate-700 px-4 py-2.5 hover:bg-slate-800">Apply filters</button>
+            <button type="button" class="rounded-lg px-4 py-2.5 text-slate-400 hover:text-white" @click="resetFilters">Reset</button>
+        </form>
+        <MonitorTable :monitors="monitors" :busy="actionForm.processing" :filtered="Boolean(props.filters.search || props.filters.status)" @edit="openForm" @toggle="toggleMonitor" @remove="deleteMonitor" />
+    </AppLayout>
 </template>

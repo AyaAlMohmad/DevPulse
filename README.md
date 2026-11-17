@@ -6,7 +6,7 @@ DevPulse is a lightweight monitoring SaaS designed to help independent developer
 
 Built with **Laravel**, **Inertia.js**, **Vue 3**, and **Tailwind CSS**, DevPulse is being developed around a backend-driven monitoring engine and a clear, interactive dashboard.
 
-> **Project status:** Early development. Monitor-management endpoints, session authentication, Vue sign-in and registration pages, and a protected Inertia dashboard shell are implemented. Monitor-management screens, automated checks, charts, and notifications are still planned; this is not yet a production-ready monitoring service.
+> **Project status:** Early development. Session authentication and the Vue monitor-management dashboard are implemented, including CRUD, pause/resume, search, status filters, pagination, and summary cards. Automated checks, charts, live polling, and notifications are still planned; this is not yet a production-ready monitoring service.
 
 ## The Problem
 
@@ -67,7 +67,7 @@ DevPulse keeps business logic on the backend and presentation concerns in the fr
 - **Jobs and scheduled tasks**, once implemented, will run checks independently of browser requests.
 - **Vue pages and reusable components**, once implemented, will handle dashboard state, forms, filters, and charts.
 
-The current monitor endpoints return JSON using Laravel session authentication and CSRF protection. Sign-in and registration use Inertia with Vue, and authenticated users can access a dashboard shell and sign out. Password reset and email verification are not yet implemented.
+Monitor endpoints use Laravel session authentication and CSRF protection. Requests that expect JSON receive resources, while browser requests render Inertia pages or redirect after successful mutations. The Vue dashboard includes reusable forms, status badges, server-side filters, pagination, and owner-scoped summary cards. Password reset and email verification are not yet implemented.
 
 ## Current Progress
 
@@ -80,12 +80,12 @@ The current monitor endpoints return JSON using Laravel session authentication a
 - [x] Request validation and ownership-based authorization.
 - [x] Explicit monitor resources and a dedicated save action.
 - [x] Backend tests for CRUD, validation, ownership, and state transitions.
-- [x] Session authentication, Vue sign-in and registration pages, and an Inertia dashboard shell.
+- [x] Session authentication, Vue sign-in and registration pages, and an Inertia dashboard.
+- [x] Reusable dashboard layout, summary cards, monitor forms, and a paginated table with server-side filters.
 
 ### Next Milestones
 
 - [ ] Password reset and email verification.
-- [ ] Reusable dashboard layout, cards, tables, and forms.
 - [ ] Response-time charts and automatic refresh.
 - [ ] Scheduled health checks and a manual check workflow.
 - [ ] Email or Discord downtime notifications.

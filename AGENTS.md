@@ -52,7 +52,9 @@ Boost replaces these bootstrap instructions with guidelines tailored to the appl
 - Run backend verification with `php artisan test --compact`. Tests use a temporary SQLite in-memory database configured in `phpunit.xml`; do not point tests at the development MySQL database.
 - Development uses MySQL. Do not replace `.env` or regenerate its application key during setup.
 - This workspace uses Git, with `main` tracking `origin/main`. Run `php vendor/bin/pint --dirty --format agent` to format changed PHP files.
-- Monitor routes return JSON using session authentication and CSRF protection. Login, registration, logout, and a protected Inertia/Vue dashboard shell are implemented. Password reset, email verification, monitor UI, charts, and background checks remain future work.
+- `/dashboard` and browser requests to `/monitors` render the Inertia dashboard. Requests that expect JSON keep resource responses; browser mutations redirect to the dashboard with a session success message. Session authentication, CSRF, and ownership policies apply to both paths.
+- Monitor UI includes CRUD, pause/resume, server-side search/status filters, pagination, and owner-scoped summary cards. Paused monitors are excluded from active health counts and average latest latency. Missing measurements remain null. Password reset, email verification, charts, polling, and actual health checks remain future work.
+- Run `php artisan test --compact tests/Feature/MonitorDashboardTest.php` to verify dashboard statistics, filtering, pagination, and the Inertia/JSON contracts.
 - Frontend pages use Vue 3 `<script setup>` in `resources/js/Pages`; shared components live in `resources/js/Components` and layouts in `resources/js/Layouts`. Named Laravel URLs are passed through Inertia shared props rather than hardcoded in Vue.
 - Run `npm ci` to install frontend dependencies and `npm run build` to verify the production build. `.npmrc` intentionally disables lifecycle scripts; do not weaken this setting.
 - Run `php artisan test --compact tests/Feature/AuthenticationTest.php` for authentication checks. These tests use `withoutVite()` so they do not require compiled assets.
