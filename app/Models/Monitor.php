@@ -1,0 +1,39 @@
+<?php
+
+namespace App\Models;
+
+use Database\Factories\MonitorFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+#[Fillable(['name', 'url', 'interval_seconds'])]
+class Monitor extends Model
+{
+    /** @use HasFactory<MonitorFactory> */
+    use HasFactory;
+
+    protected function casts(): array
+    {
+        return [
+            'is_paused' => 'boolean',
+            'interval_seconds' => 'integer',
+            'last_http_status' => 'integer',
+            'last_response_time_ms' => 'integer',
+            'last_checked_at' => 'datetime',
+            'next_check_at' => 'datetime',
+        ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function checks(): HasMany
+    {
+        return $this->hasMany(MonitorCheck::class);
+    }
+}
