@@ -24,11 +24,11 @@ class RequestMonitorCheck
             $monitor = Monitor::query()->whereKey($monitor->id)->lockForUpdate()->firstOrFail();
 
             if ($monitor->is_paused) {
-                throw ValidationException::withMessages(['check' => 'Resume this monitor before requesting a check.']);
+                throw ValidationException::withMessages(['check' => __('Resume this monitor before requesting a check.')]);
             }
 
             if ($monitor->hasPendingCheck()) {
-                throw ValidationException::withMessages(['check' => 'A check is already queued or running. Refresh results shortly.']);
+                throw ValidationException::withMessages(['check' => __('A check is already queued or running. Refresh results shortly.')]);
             }
 
             $monitor->check_token = (string) Str::uuid();

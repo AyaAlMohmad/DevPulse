@@ -72,6 +72,7 @@ class MonitorHealthCheckTest extends TestCase
         $monitor->refresh();
         $this->assertSame('up', $monitor->status);
         $this->assertSame(204, $monitor->last_http_status);
+        $this->assertSame($monitor->url, $monitor->checks()->sole()->target_url);
         $this->assertNotNull($monitor->last_response_time_ms);
         $this->assertNull($monitor->check_token);
         $this->assertSame(1, $monitor->checks()->count());
@@ -79,14 +80,158 @@ class MonitorHealthCheckTest extends TestCase
         $this->assertTrue($monitor->next_check_at->isFuture());
     }
 
-    public function test_redirects_are_not_followed_and_non_2xx_responses_are_down(): void
+    public function test_relative_redirects_are_followed_and_the_final_result_is_saved(): void
+    {
+        $monitor = $this->pendingMonitor();
+        Http::fakeSequence()->push('', 307, ['Location' => '/admin/expenses?token=private#section'])->push('', 200);
+        $this->runCheck($monitor);
+        $this->assertSame('up', $monitor->fresh()->status);
+        $this->assertSame(200, $monitor->fresh()->last_http_status);
+        $this->assertSame('https://api.example.com/admin/expenses', $monitor->fresh()->last_final_url);
+        $this->assertSame(1, $monitor->fresh()->last_redirect_count);
+        $this->assertSame(1, $monitor->checks()->sole()->redirect_count);
+        $this->assertSame($monitor->fresh()->last_final_url, $monitor->checks()->sole()->final_url);
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.example.com/admin/expenses?token=private');
+        Http::assertSentCount(2);
+    }
+
+    public function test_cross_host_redirects_are_resolved_and_pinned_without_browser_credentials(): void
+    {
+        $monitor = $this->pendingMonitor();
+        Http::fake(function ($request, array $options) {
+            $host = parse_url($request->url(), PHP_URL_HOST);
+            $this->assertSame([$host.':443:93.184.216.34'], $options['curl'][CURLOPT_RESOLVE]);
+            $this->assertFalse($options['allow_redirects']);
+            $this->assertFalse($options['cookies']);
+            $this->assertTrue($options['verify']);
+            $this->assertFalse($request->hasHeader('Authorization'));
+            $this->assertFalse($request->hasHeader('Cookie'));
+            $this->assertFalse($request->hasHeader('Referer'));
+
+            return $host === 'api.example.com' ? Http::response('', 308, ['Location' => '//other.example.com/result']) : Http::response('', 204);
+        });
+        $this->runCheck($monitor);
+        $this->assertSame('up', $monitor->fresh()->status);
+        $this->assertSame('https://other.example.com/result', $monitor->checks()->sole()->final_url);
+        Http::assertSentCount(2);
+    }
+
+    public function test_protected_responses_are_unknown_not_down_or_successful(): void
+    {
+        Http::fakeSequence()->push('', 401)->push('', 403);
+        foreach ([401, 403] as $status) {
+            $monitor = $this->pendingMonitor();
+            $this->runCheck($monitor);
+            $this->assertSame('unknown', $monitor->fresh()->status);
+            $this->assertSame($status, $monitor->fresh()->last_http_status);
+            $this->assertSame('access_restricted', $monitor->checks()->sole()->error_type);
+        }
+    }
+
+    #[DataProvider('redirectFailures')]
+    public function test_redirect_limits_loops_and_missing_locations_have_clear_unknown_results(string $error): void
+    {
+        $counter = 0;
+        Http::fake(function () use ($error, &$counter) {
+            $counter++;
+            $location = match ($error) {
+                'redirect_limit' => '/hop-'.$counter,
+                'redirect_loop' => '/health',
+                'redirect_missing_location' => '',
+                'redirect_blocked' => 'http://api.example.com/plaintext',
+                default => 'https://api.example.com/unsafe\\value',
+            };
+
+            return Http::response('', 307, ['Location' => $location]);
+        });
+        $monitor = $this->pendingMonitor();
+        $this->runCheck($monitor);
+        $this->assertSame('unknown', $monitor->fresh()->status);
+        $this->assertSame($error, $monitor->checks()->sole()->error_type);
+        $this->assertSame($error === 'redirect_limit' ? 4 : 1, $counter);
+    }
+
+    public static function redirectFailures(): array
+    {
+        return [['redirect_limit'], ['redirect_loop'], ['redirect_missing_location'], ['invalid_redirect'], ['redirect_blocked']];
+    }
+
+    public function test_each_redirect_destination_is_checked_again_for_private_dns_addresses(): void
+    {
+        $this->mock(ResolveHostAddresses::class)->shouldReceive('__invoke')->twice()
+            ->andReturn(['93.184.216.34'], ['127.0.0.1']);
+        Http::fakeSequence()->push('', 307, ['Location' => 'https://other.example.com/private']);
+        $monitor = $this->pendingMonitor();
+        $this->runCheck($monitor);
+        $this->assertSame('redirect_blocked', $monitor->checks()->sole()->error_type);
+        $this->assertSame('unknown', $monitor->fresh()->status);
+        $this->assertSame(0, $monitor->fresh()->last_redirect_count);
+        Http::assertSentCount(1);
+    }
+
+    #[DataProvider('unsafeRedirectDestinations')]
+    public function test_redirects_cannot_reach_private_metadata_or_other_protocols(string $location): void
+    {
+        Http::fakeSequence()->push('', 307, ['Location' => $location]);
+        $monitor = $this->pendingMonitor();
+        $this->runCheck($monitor);
+        $this->assertSame('unknown', $monitor->fresh()->status);
+        $this->assertSame('redirect_blocked', $monitor->checks()->sole()->error_type);
+        Http::assertSentCount(1);
+    }
+
+    public static function unsafeRedirectDestinations(): array
+    {
+        return [
+            ['https://127.0.0.1/private'], ['https://169.254.169.254/metadata'],
+            ['https://user:password@other.example.com'], ['file:///etc/passwd'],
+            ['https://internal.test/private'], ['https://api.example.com:8443/other'],
+        ];
+    }
+
+    #[DataProvider('redirectStatuses')]
+    public function test_standard_redirect_status_codes_are_followed_without_assuming_a_login_path(int $status): void
+    {
+        Http::fakeSequence()->push('', $status, ['Location' => '/catalog'])->push('', 200);
+        $monitor = $this->pendingMonitor();
+        $this->runCheck($monitor);
+        $this->assertSame('up', $monitor->fresh()->status);
+        $this->assertSame('https://api.example.com/catalog', $monitor->fresh()->last_final_url);
+        Http::assertSentCount(2);
+        app(SaveMonitor::class)->execute($monitor->user, ['url' => 'https://example.org/new'], $monitor);
+        $this->assertNull($monitor->fresh()->last_final_url);
+        $this->assertNull($monitor->fresh()->last_redirect_count);
+        $this->assertSame(1, $monitor->checks()->sole()->redirect_count);
+    }
+
+    public static function redirectStatuses(): array
+    {
+        return [[301], [302], [303], [307], [308]];
+    }
+
+    public function test_redirect_body_limit_is_shared_across_all_hops(): void
+    {
+        $counter = 0;
+        Http::fake(function ($request, array $options) use (&$counter) {
+            $counter++;
+            $options['sink']->write(str_repeat('a', $counter === 1 ? 40000 : 30000));
+
+            return Http::response('', 302, ['Location' => '/next']);
+        });
+        $monitor = $this->pendingMonitor();
+        $this->runCheck($monitor);
+        $this->assertSame('response_too_large', $monitor->checks()->sole()->error_type);
+        $this->assertSame(2, $counter);
+    }
+
+    public function test_unsafe_redirects_are_blocked_and_404_and_503_are_down(): void
     {
         Http::fakeSequence()
             ->push('', 302, ['Location' => 'http://127.0.0.1'])->push('', 404)->push('', 503);
         foreach ([302, 404, 503] as $status) {
             $monitor = $this->pendingMonitor();
             $this->runCheck($monitor);
-            $this->assertSame('down', $monitor->fresh()->status);
+            $this->assertSame($status === 302 ? 'unknown' : 'down', $monitor->fresh()->status);
             $this->assertSame($status, $monitor->checks()->sole()->http_status);
         }
         Http::assertSentCount(3);
@@ -128,7 +273,7 @@ class MonitorHealthCheckTest extends TestCase
         });
         $this->runCheck($monitor);
         $this->assertSame('response_too_large', $monitor->checks()->sole()->error_type);
-        $this->assertSame('down', $monitor->fresh()->status);
+        $this->assertSame('unknown', $monitor->fresh()->status);
     }
 
     public function test_duplicate_job_delivery_does_not_record_or_send_twice(): void

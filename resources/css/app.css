@@ -8,3 +8,61 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+:root {
+    color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+    color-scheme: light;
+    --color-slate-950: #f8fafc;
+    --color-slate-900: #ffffff;
+    --color-slate-800: #e2e8f0;
+    --color-slate-700: #cbd5e1;
+    --color-slate-600: #64748b;
+    --color-slate-500: #64748b;
+    --color-slate-400: #475569;
+    --color-slate-300: #334155;
+    --color-slate-200: #1e293b;
+    --color-slate-100: #0f172a;
+    --color-slate-50: #020617;
+    --color-emerald-950: #ecfdf5;
+    --color-emerald-800: #a7f3d0;
+    --color-emerald-400: #047857;
+    --color-emerald-300: #065f46;
+    --color-emerald-200: #065f46;
+    --color-red-950: #fef2f2;
+    --color-red-900: #fecaca;
+    --color-red-400: #dc2626;
+    --color-red-300: #b91c1c;
+    --color-red-200: #991b1b;
+    --color-amber-400: #b45309;
+    --color-amber-300: #92400e;
+    --color-sky-400: #0284c7;
+    --color-sky-300: #0369a1;
+}
+
+:root[data-theme='light'] .hover\:text-white:hover {
+    color: var(--color-slate-100);
+}
+
+button, select, a, input {
+    -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+    outline: 2px solid var(--color-emerald-400);
+    outline-offset: 3px;
+}
+
+input[type='email'], input[type='url'] {
+    direction: ltr;
+    text-align: start;
+}
+
+.landing-grid {
+    background-image: linear-gradient(var(--color-slate-800) 1px, transparent 1px),
+        linear-gradient(90deg, var(--color-slate-800) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: linear-gradient(to bottom, black, transparent);
+}

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\RequestMonitorCheck;
+use App\Http\Requests\RunMonitorCheckRequest;
 use App\Http\Resources\MonitorResource;
 use App\Models\Monitor;
 use Illuminate\Http\JsonResponse;
@@ -15,14 +16,17 @@ class MonitorCheckController extends Controller
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request, Monitor $monitor, RequestMonitorCheck $requestCheck): JsonResponse|RedirectResponse
+    public function __invoke(RunMonitorCheckRequest $request, Monitor $monitor, RequestMonitorCheck $requestCheck): JsonResponse|RedirectResponse
     {
         Gate::authorize('update', $monitor);
         $requestCheck->execute($monitor);
 
         return $request->expectsJson()
             ? (new MonitorResource($monitor->refresh()))->response()->setStatusCode(202)
-            : redirect()->route('dashboard')->with('success', 'Check queued. Refresh results after the queue worker processes it.');
+            : redirect()->route(
+                $request->validated('redirect') === 'details' ? 'monitors.show' : 'dashboard',
+                $request->validated('redirect') === 'details' ? ['monitor' => $monitor->id] : [],
+            )->with('success', __('Check queued. Refresh results after the queue worker processes it.'));
         //
     }
 }

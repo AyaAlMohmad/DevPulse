@@ -6,16 +6,23 @@ use DomainException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Handler\CurlHandler;
 use GuzzleHttp\Psr7\FnStream;
+use GuzzleHttp\Psr7\Uri;
+use GuzzleHttp\Psr7\UriResolver;
 use GuzzleHttp\Psr7\Utils;
 use GuzzleHttp\TransferStats;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use InvalidArgumentException;
 use LengthException;
 use Psr\Http\Message\ResponseInterface;
 
 class ProbeMonitorUrl
 {
     public const MAX_RESPONSE_BYTES = 65536;
+
+    public const MAX_REDIRECTS = 3;
+
+    public const MAX_CHECK_SECONDS = 15;
 
     /**
      * Create a new class instance.
@@ -31,20 +38,91 @@ class ProbeMonitorUrl
             return $this->result('unknown', null, null, 'curl_unavailable');
         }
 
-        try {
-            $target = $this->resolveTarget->execute($url);
-        } catch (DomainException $exception) {
-            $error = $exception->getMessage();
-
-            return $this->result($error === 'blocked_target' ? 'unknown' : 'down', null, null, $error);
-        }
-
         $started = hrtime(true);
         $bytes = 0;
+        $httpStatus = null;
+        $finalUrl = null;
+        $redirects = 0;
+        $seen = [];
+        $requested = false;
+        $following = false;
+        $finish = function (string $status, ?string $error) use (&$httpStatus, &$finalUrl, &$redirects, &$requested, $started): array {
+            return $this->result($status, $httpStatus, $requested ? (int) round((hrtime(true) - $started) / 1_000_000) : null,
+                $error, $finalUrl, $redirects);
+        };
+
+        while (true) {
+            if ((hrtime(true) - $started) / 1_000_000_000 >= self::MAX_CHECK_SECONDS) {
+                return $finish('down', 'timeout');
+            }
+
+            try {
+                $target = $this->resolveTarget->execute($url);
+            } catch (DomainException $exception) {
+                $error = $exception->getMessage();
+
+                return $finish($error === 'blocked_target' ? 'unknown' : 'down',
+                    $following && $error === 'blocked_target' ? 'redirect_blocked' : $error);
+            }
+
+            if (isset($seen[$target['url']])) {
+                return $finish('unknown', 'redirect_loop');
+            }
+            $seen[$target['url']] = true;
+            $remaining = self::MAX_CHECK_SECONDS - (hrtime(true) - $started) / 1_000_000_000;
+            if ($remaining <= 0) {
+                return $finish('down', 'timeout');
+            }
+
+            $redirects += $following ? 1 : 0;
+            $requested = true;
+            $finalUrl = (string) (new Uri($target['url']))->withQuery('')->withFragment('');
+            $hop = $this->request($target, $remaining, $bytes);
+            $httpStatus = $hop['http_status'];
+            if (in_array($httpStatus, [401, 403], true)) {
+                return $finish('unknown', 'access_restricted');
+            }
+            if ($hop['error_type'] !== null) {
+                return $finish($hop['error_type'] === 'response_too_large' ? 'unknown' : 'down', $hop['error_type']);
+            }
+            if ($httpStatus >= 200 && $httpStatus < 300) {
+                return $finish('up', null);
+            }
+            if (! in_array($httpStatus, [301, 302, 303, 307, 308], true)) {
+                return $finish($httpStatus >= 300 && $httpStatus < 400 ? 'unknown' : 'down',
+                    $httpStatus >= 300 && $httpStatus < 400 ? 'redirect_blocked' : 'http_error');
+            }
+            if ($redirects >= self::MAX_REDIRECTS) {
+                return $finish('unknown', 'redirect_limit');
+            }
+
+            $location = trim($hop['location'] ?? '');
+            if ($location === '') {
+                return $finish('unknown', 'redirect_missing_location');
+            }
+            if (strlen($location) > 2048 || preg_match('/[\x00-\x20\x7f\\\\]/', $location) !== 0) {
+                return $finish('unknown', 'invalid_redirect');
+            }
+            try {
+                $next = UriResolver::resolve(new Uri($target['url']), new Uri($location))->withFragment('');
+            } catch (InvalidArgumentException) {
+                return $finish('unknown', 'invalid_redirect');
+            }
+            if (parse_url($target['url'], PHP_URL_SCHEME) === 'https' && $next->getScheme() === 'http') {
+                return $finish('unknown', 'redirect_blocked');
+            }
+            $url = (string) $next;
+            $following = true;
+        }
+    }
+
+    private function request(array $target, float $remaining, int &$bytes): array
+    {
         $tooLarge = false;
         $httpStatus = null;
         $curlError = null;
         $error = null;
+        $location = null;
         $sink = FnStream::decorate(Utils::streamFor(''), [
             'write' => function (string $chunk) use (&$bytes, &$tooLarge): int {
                 $bytes += strlen($chunk);
@@ -69,8 +147,8 @@ class ProbeMonitorUrl
                 'idn_conversion' => false,
                 'protocols' => ['http', 'https'],
                 'http_errors' => false,
-                'timeout' => 10,
-                'connect_timeout' => 3,
+                'timeout' => min(10, $remaining),
+                'connect_timeout' => min(3, $remaining),
                 'sink' => $sink,
                 'headers' => ['User-Agent' => 'DevPulse/1.0', 'Accept-Encoding' => 'identity'],
                 'curl' => [
@@ -83,17 +161,18 @@ class ProbeMonitorUrl
                     $data = $stats->getHandlerErrorData();
                     $curlError = is_int($data) ? $data : null;
                 },
-                'on_headers' => function (ResponseInterface $response) use (&$httpStatus, &$tooLarge): void {
+                'on_headers' => function (ResponseInterface $response) use (&$httpStatus, &$tooLarge, &$bytes): void {
                     $httpStatus = $response->getStatusCode();
 
-                    if ((float) $response->getHeaderLine('Content-Length') > self::MAX_RESPONSE_BYTES) {
+                    if ((float) $response->getHeaderLine('Content-Length') > self::MAX_RESPONSE_BYTES - $bytes) {
                         $tooLarge = true;
                         throw new LengthException('Response body limit exceeded.');
                     }
                 },
             ])->setHandler(new CurlHandler)->get($target['url']);
             $httpStatus = $response->status();
-            $error = $response->successful() ? null : ($response->redirect() ? 'redirect_blocked' : 'http_error');
+            $locations = $response->toPsrResponse()->getHeader('Location');
+            $location = count($locations) === 1 ? $locations[0] : null;
         } catch (ConnectionException) {
             $error = $tooLarge ? 'response_too_large' : match ($curlError) {
                 CURLE_OPERATION_TIMEDOUT => 'timeout',
@@ -106,17 +185,18 @@ class ProbeMonitorUrl
             $sink->close();
         }
 
-        return $this->result($error === null ? 'up' : 'down', $httpStatus,
-            (int) round((hrtime(true) - $started) / 1_000_000), $error);
+        return ['http_status' => $httpStatus, 'error_type' => $error, 'location' => $location];
     }
 
-    private function result(string $status, ?int $httpStatus, ?int $responseTime, ?string $error): array
+    private function result(string $status, ?int $httpStatus, ?int $responseTime, ?string $error, ?string $finalUrl = null, int $redirectCount = 0): array
     {
         return [
             'status' => $status,
             'http_status' => $httpStatus,
             'response_time_ms' => $responseTime,
             'error_type' => $error,
+            'final_url' => $finalUrl,
+            'redirect_count' => $redirectCount,
         ];
     }
 }

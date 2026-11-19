@@ -37,10 +37,15 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
+            'locale' => app()->getLocale(),
+            'locales' => SetLocale::SUPPORTED,
+            'translations' => fn () => json_decode(file_get_contents(lang_path(app()->getLocale().'.json')), true, flags: JSON_THROW_ON_ERROR),
             'auth' => [
                 'user' => fn () => $request->user()?->only('id', 'name', 'email'),
             ],
             'urls' => [
+                'home' => route('home'),
+                'locale' => route('locale.update'),
                 'login' => route('login'),
                 'register' => route('register'),
                 'logout' => route('logout'),

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\MonitorCheckHistory;
 use App\Actions\MonitorOverview;
 use App\Actions\SaveMonitor;
 use App\Http\Requests\MonitorIndexRequest;
@@ -57,14 +58,17 @@ class MonitorController extends Controller
         $monitor = $saveMonitor->execute($request->user(), $request->validated());
 
         return $request->expectsJson() ? new MonitorResource($monitor)
-            : redirect()->route('dashboard')->with('success', 'Monitor created. Use Check Now to run its first health check.');
+            : redirect()->route('dashboard')->with('success', __('Monitor created. Use Check Now to run its first health check.'));
     }
 
-    public function show(Monitor $monitor): MonitorResource
+    public function show(Request $request, Monitor $monitor, MonitorCheckHistory $history): MonitorResource|InertiaResponse
     {
         Gate::authorize('view', $monitor);
 
-        return new MonitorResource($monitor);
+        return $request->expectsJson() ? new MonitorResource($monitor) : Inertia::render('Monitors/Show', [
+            'monitor' => new MonitorResource($monitor),
+            'checks' => $history->execute($monitor),
+        ]);
     }
 
     public function update(UpdateMonitorRequest $request, Monitor $monitor, SaveMonitor $saveMonitor): MonitorResource|RedirectResponse
@@ -72,7 +76,7 @@ class MonitorController extends Controller
         $monitor = $saveMonitor->execute($request->user(), $request->validated(), $monitor);
 
         return $request->expectsJson() ? new MonitorResource($monitor)
-            : redirect()->route('dashboard')->with('success', 'Monitor updated.');
+            : redirect()->route('dashboard')->with('success', __('Monitor updated.'));
     }
 
     public function pause(Request $request, Monitor $monitor): MonitorResource|RedirectResponse
@@ -87,7 +91,7 @@ class MonitorController extends Controller
         $monitor->refresh();
 
         return $request->expectsJson() ? new MonitorResource($monitor)
-            : redirect()->route('dashboard')->with('success', 'Monitor paused.');
+            : redirect()->route('dashboard')->with('success', __('Monitor paused.'));
     }
 
     public function resume(Request $request, Monitor $monitor): MonitorResource|RedirectResponse
@@ -103,7 +107,7 @@ class MonitorController extends Controller
         $monitor->refresh();
 
         return $request->expectsJson() ? new MonitorResource($monitor)
-            : redirect()->route('dashboard')->with('success', 'Monitor resumed. Use Check Now to refresh its status.');
+            : redirect()->route('dashboard')->with('success', __('Monitor resumed. Use Check Now to refresh its status.'));
     }
 
     public function destroy(Request $request, Monitor $monitor): Response|RedirectResponse
@@ -112,6 +116,6 @@ class MonitorController extends Controller
         $monitor->delete();
 
         return $request->expectsJson() ? response()->noContent()
-            : redirect()->route('dashboard')->with('success', 'Monitor and check history deleted.');
+            : redirect()->route('dashboard')->with('success', __('Monitor and check history deleted.'));
     }
 }

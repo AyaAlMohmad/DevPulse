@@ -5,6 +5,8 @@ import AppLayout from '../Layouts/AppLayout.vue';
 import MonitorForm from '../Components/MonitorForm.vue';
 import MonitorTable from '../Components/MonitorTable.vue';
 import StatCard from '../Components/StatCard.vue';
+import CheckInstructions from '../Components/CheckInstructions.vue';
+import { translate } from '../translation.js';
 
 const props = defineProps({
     monitors: { type: Object, required: true },
@@ -53,7 +55,7 @@ function toggleMonitor(monitor) {
 }
 
 function deleteMonitor(monitor) {
-    if (!window.confirm(`Delete "${monitor.name}" and all its check history? This cannot be undone.`)) return;
+    if (!window.confirm(translate(page.props.translations, 'Delete ":name" and all its check history? This cannot be undone.', { name: monitor.name }))) return;
     actionForm.delete(monitor.links.destroy, {
         preserveScroll: true,
         onSuccess: () => { if (editing.value?.id === monitor.id) closeForm(); },
@@ -62,49 +64,49 @@ function deleteMonitor(monitor) {
 </script>
 
 <template>
-    <Head title="Monitors" />
+    <Head :title="$t('Monitors')" />
     <AppLayout>
         <div class="mb-8 flex flex-wrap items-start justify-between gap-4">
             <div>
-                <p class="text-sm font-medium text-emerald-400">YOUR WORKSPACE</p>
-                <h1 class="mt-2 text-3xl font-semibold">API monitors</h1>
-                <p class="mt-2 text-sm text-slate-400">Manage endpoints and review their latest recorded health.</p>
+                <p class="text-sm font-medium text-emerald-400">{{ $t('YOUR WORKSPACE') }}</p>
+                <h1 class="mt-2 text-3xl font-semibold">{{ $t('API monitors') }}</h1>
+                <p class="mt-2 text-sm text-slate-400">{{ $t('Manage endpoints and review their latest recorded health.') }}</p>
             </div>
-            <div class="flex gap-3">
-                <button :disabled="actionForm.processing" class="rounded-lg border border-slate-700 px-4 py-2.5 text-slate-200 hover:bg-slate-800 disabled:opacity-50" @click="refreshResults">Refresh results</button>
-                <button :disabled="actionForm.processing" class="rounded-lg bg-emerald-400 px-5 py-2.5 font-semibold text-slate-950 hover:bg-emerald-300 disabled:opacity-50" @click="openForm()">Add monitor</button>
+            <div class="flex flex-wrap gap-3">
+                <button :disabled="actionForm.processing" class="rounded-lg border border-slate-700 px-4 py-2.5 text-slate-200 hover:bg-slate-800 disabled:opacity-50" @click="refreshResults">{{ $t('Refresh results') }}</button>
+                <button :disabled="actionForm.processing" class="rounded-lg bg-emerald-400 px-5 py-2.5 font-semibold text-slate-950 hover:bg-emerald-300 disabled:opacity-50" @click="openForm()">{{ $t('Add monitor') }}</button>
             </div>
         </div>
 
         <dl class="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Total monitors" :value="stats.total" detail="All monitors, including paused" />
-            <StatCard label="Up" :value="stats.up" detail="Active monitors last recorded as up" />
-            <StatCard label="Down" :value="stats.down" detail="Active monitors last recorded as down" />
-            <StatCard label="Avg response time" :value="stats.average_response_time_ms === null ? '—' : `${stats.average_response_time_ms} ms`" detail="Latest measured responses of active monitors" />
+            <StatCard :label="$t('Total monitors')" :value="stats.total" :detail="$t('All monitors, including paused')" />
+            <StatCard :label="$t('Up')" :value="stats.up" :detail="$t('Active monitors last recorded as up')" />
+            <StatCard :label="$t('Down')" :value="stats.down" :detail="$t('Active monitors last recorded as down')" />
+            <StatCard :label="$t('Avg response time')" :value="stats.average_response_time_ms === null ? '—' : $t(':value ms', { value: stats.average_response_time_ms })" :detail="$t('Latest measured responses of active monitors')" />
         </dl>
-        <p class="mb-8 text-xs text-slate-400">{{ stats.unknown }} active with unknown status · {{ stats.paused }} paused. Statistics cover all your monitors, regardless of filters.</p>
-        <p class="mb-8 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-400">Check Now queues a manual check. Select Refresh results after the worker runs. Pending reservations expire after 5 minutes if no worker processes them. Scheduled checks, charts, and automatic refresh are not enabled yet.</p>
+        <p class="mb-8 text-xs text-slate-400">{{ $t(':unknown active with unknown status · :paused paused. Statistics cover all your monitors, regardless of filters.', { unknown: stats.unknown, paused: stats.paused }) }}</p>
+        <CheckInstructions />
         <p v-if="actionForm.errors.check" role="alert" class="mb-6 rounded-lg border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-200">{{ actionForm.errors.check }}</p>
 
         <MonitorForm v-if="formOpen" :key="editing?.id ?? 'new'" :monitor="editing" @saved="closeForm" @cancel="closeForm" />
 
         <form class="mb-5 flex flex-wrap items-end gap-3" role="search" @submit.prevent="applyFilters">
             <div class="min-w-48 flex-1">
-                <label for="monitor-search" class="mb-2 block text-sm text-slate-300">Search endpoints</label>
-                <input id="monitor-search" v-model="filters.search" type="search" maxlength="100" placeholder="Name or URL" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 focus:ring-2 focus:ring-emerald-400" />
+                <label for="monitor-search" class="mb-2 block text-sm text-slate-300">{{ $t('Search endpoints') }}</label>
+                <input id="monitor-search" v-model="filters.search" type="search" maxlength="100" :placeholder="$t('Name or URL')" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 focus:ring-2 focus:ring-emerald-400" />
             </div>
             <div>
-                <label for="status-filter" class="mb-2 block text-sm text-slate-300">Status</label>
+                <label for="status-filter" class="mb-2 block text-sm text-slate-300">{{ $t('Status') }}</label>
                 <select id="status-filter" v-model="filters.status" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 focus:ring-2 focus:ring-emerald-400">
-                    <option value="">All statuses</option>
-                    <option value="up">Up</option>
-                    <option value="down">Down</option>
-                    <option value="unknown">Unknown</option>
-                    <option value="paused">Paused</option>
+                    <option value="">{{ $t('All statuses') }}</option>
+                    <option value="up">{{ $t('Up') }}</option>
+                    <option value="down">{{ $t('Down') }}</option>
+                    <option value="unknown">{{ $t('Unknown') }}</option>
+                    <option value="paused">{{ $t('Paused') }}</option>
                 </select>
             </div>
-            <button type="submit" class="rounded-lg border border-slate-700 px-4 py-2.5 hover:bg-slate-800">Apply filters</button>
-            <button type="button" class="rounded-lg px-4 py-2.5 text-slate-400 hover:text-white" @click="resetFilters">Reset</button>
+            <button type="submit" class="rounded-lg border border-slate-700 px-4 py-2.5 hover:bg-slate-800">{{ $t('Apply filters') }}</button>
+            <button type="button" class="rounded-lg px-4 py-2.5 text-slate-400 hover:text-white" @click="resetFilters">{{ $t('Reset') }}</button>
         </form>
         <MonitorTable :monitors="monitors" :busy="actionForm.processing" :filtered="Boolean(props.filters.search || props.filters.status)" @edit="openForm" @toggle="toggleMonitor" @remove="deleteMonitor" @check="checkMonitor" />
     </AppLayout>

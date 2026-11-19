@@ -34,11 +34,13 @@ class CheckMonitor
             }
 
             $checkedAt = now();
-            $monitor->checks()->create([...$result, 'checked_at' => $checkedAt]);
+            $monitor->checks()->create([...$result, 'target_url' => $snapshot->url, 'checked_at' => $checkedAt]);
             $monitor->status = $result['status'];
             $monitor->last_http_status = $result['http_status'];
             $monitor->last_response_time_ms = $result['response_time_ms'];
             $monitor->last_error_type = $result['error_type'];
+            $monitor->last_final_url = $result['final_url'];
+            $monitor->last_redirect_count = $result['redirect_count'];
             $monitor->last_checked_at = $checkedAt;
             $monitor->next_check_at = $checkedAt->copy()->addSeconds($monitor->interval_seconds);
             $monitor->check_token = null;

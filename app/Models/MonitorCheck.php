@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['status', 'http_status', 'response_time_ms', 'error_type', 'checked_at'])]
+#[Fillable(['target_url', 'final_url', 'redirect_count', 'status', 'http_status', 'response_time_ms', 'error_type', 'checked_at'])]
 class MonitorCheck extends Model
 {
     /** @use HasFactory<MonitorCheckFactory> */
@@ -18,6 +18,7 @@ class MonitorCheck extends Model
     {
         return [
             'http_status' => 'integer',
+            'redirect_count' => 'integer',
             'response_time_ms' => 'integer',
             'checked_at' => 'datetime',
         ];

@@ -28,6 +28,8 @@ class SaveMonitor
                 $monitor->check_token = null;
                 $monitor->check_requested_at = null;
                 $monitor->last_error_type = null;
+                $monitor->last_final_url = null;
+                $monitor->last_redirect_count = null;
                 $monitor->status = 'unknown';
                 $monitor->last_http_status = null;
                 $monitor->last_response_time_ms = null;

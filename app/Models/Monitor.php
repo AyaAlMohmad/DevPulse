@@ -29,6 +29,7 @@ class Monitor extends Model
             'is_paused' => 'boolean',
             'interval_seconds' => 'integer',
             'last_http_status' => 'integer',
+            'last_redirect_count' => 'integer',
             'last_response_time_ms' => 'integer',
             'last_checked_at' => 'datetime',
             'next_check_at' => 'datetime',

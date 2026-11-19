@@ -27,24 +27,25 @@ function submit() {
 
 <template>
     <section aria-labelledby="monitor-form-title" class="mb-8 rounded-2xl border border-emerald-800 bg-slate-900 p-6">
-        <h2 id="monitor-form-title" class="text-xl font-semibold">{{ monitor ? 'Edit monitor' : 'Add a monitor' }}</h2>
-        <p class="mt-2 text-sm text-slate-400">Save a public HTTP or HTTPS endpoint on its standard port (80 or 443), without embedded credentials. Use Check Now to run a manual health check.</p>
-        <form class="mt-6 space-y-5" @submit.prevent="submit">
+        <h2 id="monitor-form-title" class="text-xl font-semibold">{{ $t(monitor ? 'Edit monitor' : 'Add a monitor') }}</h2>
+        <p class="mt-2 text-sm leading-6 text-slate-400">{{ $t('Save a public HTTP or HTTPS endpoint on its standard port (80 or 443), without embedded credentials. Use Check Now to run a manual health check.') }}</p>
+        <form class="mt-6 space-y-5" novalidate @submit.prevent="submit">
             <div class="grid gap-5 md:grid-cols-2">
-                <FormField id="monitor-name" v-model="form.name" label="Monitor name" :error="form.errors.name" />
-                <FormField id="monitor-url" v-model="form.url" label="Endpoint URL" type="url" :error="form.errors.url" />
+                <FormField id="monitor-name" v-model="form.name" :label="$t('Monitor name')" :error="form.errors.name" />
+                <FormField id="monitor-url" v-model="form.url" :label="$t('Endpoint URL')" type="url" :error="form.errors.url" />
             </div>
             <div class="max-w-sm">
-                <label for="monitor-interval" class="mb-2 block text-sm font-medium">Check interval</label>
+                <label for="monitor-interval" class="mb-2 block text-sm font-medium">{{ $t('Check interval') }}</label>
+                <p class="mb-3 text-xs leading-6 text-amber-300">{{ $t('Checks are manual. The interval setting does not enable scheduling yet.') }}</p>
                 <select id="monitor-interval" v-model="form.interval_seconds" :aria-invalid="Boolean(form.errors.interval_seconds)" :aria-describedby="form.errors.interval_seconds ? 'interval-error' : undefined" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 focus:ring-2 focus:ring-emerald-400">
-                    <option v-for="interval in intervals" :key="interval.value" :value="interval.value">{{ interval.label }}</option>
+                    <option v-for="interval in intervals" :key="interval.value" :value="interval.value">{{ $t(interval.label) }}</option>
                 </select>
                 <p v-if="form.errors.interval_seconds" id="interval-error" role="alert" class="mt-2 text-sm text-red-400">{{ form.errors.interval_seconds }}</p>
             </div>
-            <p v-if="monitor" class="text-xs text-amber-300">Changing the URL resets the latest health summary. Historical checks are retained.</p>
-            <div class="flex gap-3">
-                <button type="submit" :disabled="form.processing" class="rounded-lg bg-emerald-400 px-5 py-2.5 font-semibold text-slate-950 hover:bg-emerald-300 disabled:opacity-50">{{ form.processing ? 'Saving...' : 'Save monitor' }}</button>
-                <button type="button" :disabled="form.processing" class="rounded-lg border border-slate-700 px-5 py-2.5 text-slate-300 hover:bg-slate-800 disabled:opacity-50" @click="emit('cancel')">Cancel</button>
+            <p v-if="monitor" class="text-xs text-amber-300">{{ $t('Changing the URL resets the latest health summary. Historical checks are retained.') }}</p>
+            <div class="flex flex-wrap gap-3">
+                <button type="submit" :disabled="form.processing" class="rounded-lg bg-emerald-400 px-5 py-2.5 font-semibold text-slate-950 hover:bg-emerald-300 disabled:opacity-50">{{ $t(form.processing ? 'Saving...' : 'Save monitor') }}</button>
+                <button type="button" :disabled="form.processing" class="rounded-lg border border-slate-700 px-5 py-2.5 text-slate-300 hover:bg-slate-800 disabled:opacity-50" @click="emit('cancel')">{{ $t('Cancel') }}</button>
             </div>
         </form>
     </section>
