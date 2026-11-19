@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\MonitorCheckController;
 use App\Http\Controllers\MonitorController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +21,7 @@ Route::middleware('auth')->group(function () {
     Route::get('dashboard', [MonitorController::class, 'index'])->name('dashboard');
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
     Route::resource('monitors', MonitorController::class)->except(['create', 'edit']);
+    Route::post('monitors/{monitor}/check', MonitorCheckController::class)->middleware('throttle:10,1')->name('monitors.check');
     Route::patch('monitors/{monitor}/pause', [MonitorController::class, 'pause'])->name('monitors.pause');
     Route::patch('monitors/{monitor}/resume', [MonitorController::class, 'resume'])->name('monitors.resume');
 });

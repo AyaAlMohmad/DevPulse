@@ -57,7 +57,7 @@ class MonitorController extends Controller
         $monitor = $saveMonitor->execute($request->user(), $request->validated());
 
         return $request->expectsJson() ? new MonitorResource($monitor)
-            : redirect()->route('dashboard')->with('success', 'Monitor created. Health checks are not enabled yet.');
+            : redirect()->route('dashboard')->with('success', 'Monitor created. Use Check Now to run its first health check.');
     }
 
     public function show(Monitor $monitor): MonitorResource
@@ -78,9 +78,13 @@ class MonitorController extends Controller
     public function pause(Request $request, Monitor $monitor): MonitorResource|RedirectResponse
     {
         Gate::authorize('update', $monitor);
-        $monitor->is_paused = true;
-        $monitor->next_check_at = null;
-        $monitor->save();
+        Monitor::query()->whereKey($monitor->id)->update([
+            'is_paused' => true,
+            'next_check_at' => null,
+            'check_token' => null,
+            'check_requested_at' => null,
+        ]);
+        $monitor->refresh();
 
         return $request->expectsJson() ? new MonitorResource($monitor)
             : redirect()->route('dashboard')->with('success', 'Monitor paused.');
@@ -90,14 +94,16 @@ class MonitorController extends Controller
     {
         Gate::authorize('update', $monitor);
 
-        if ($monitor->is_paused) {
-            $monitor->is_paused = false;
-            $monitor->next_check_at = now();
-            $monitor->save();
-        }
+        Monitor::query()->whereKey($monitor->id)->where('is_paused', true)->update([
+            'is_paused' => false,
+            'next_check_at' => now(),
+            'check_token' => null,
+            'check_requested_at' => null,
+        ]);
+        $monitor->refresh();
 
         return $request->expectsJson() ? new MonitorResource($monitor)
-            : redirect()->route('dashboard')->with('success', 'Monitor resumed. Health checks are not enabled yet.');
+            : redirect()->route('dashboard')->with('success', 'Monitor resumed. Use Check Now to refresh its status.');
     }
 
     public function destroy(Request $request, Monitor $monitor): Response|RedirectResponse

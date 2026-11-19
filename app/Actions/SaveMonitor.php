@@ -19,10 +19,15 @@ class SaveMonitor
     public function execute(User $user, array $attributes, ?Monitor $monitor = null): Monitor
     {
         return $this->database->transaction(function () use ($user, $attributes, $monitor): Monitor {
-            $monitor ??= $user->monitors()->make();
+            $monitor = $monitor?->exists
+                ? $user->monitors()->lockForUpdate()->findOrFail($monitor->id)
+                : $user->monitors()->make();
             $monitor->fill($attributes);
 
             if ($monitor->isDirty('url')) {
+                $monitor->check_token = null;
+                $monitor->check_requested_at = null;
+                $monitor->last_error_type = null;
                 $monitor->status = 'unknown';
                 $monitor->last_http_status = null;
                 $monitor->last_response_time_ms = null;

@@ -7,7 +7,20 @@ defineProps({
     busy: { type: Boolean, default: false },
     filtered: { type: Boolean, default: false },
 });
-const emit = defineEmits(['edit', 'toggle', 'remove']);
+const emit = defineEmits(['edit', 'toggle', 'remove', 'check']);
+const errorLabels = {
+    blocked_target: 'Destination blocked: public endpoints only',
+    dns_failure: 'DNS lookup failed',
+    dns_timeout: 'DNS lookup timed out',
+    curl_unavailable: 'cURL is unavailable on the worker',
+    connection_failed: 'Connection failed',
+    timeout: 'Request timed out',
+    tls_failure: 'TLS verification or connection failed',
+    response_too_large: 'Response exceeded 64 KiB',
+    redirect_blocked: 'Redirect not followed',
+    http_error: 'Unexpected HTTP status',
+    request_failed: 'HTTP transfer failed',
+};
 
 function formatDate(value) {
     return value ? new Date(value).toLocaleString() : 'Never checked';
@@ -41,6 +54,8 @@ function formatDate(value) {
                         </td>
                         <td class="px-5 py-5">
                             <StatusBadge :status="monitor.status" :paused="monitor.is_paused" />
+                            <p v-if="monitor.is_check_pending" role="status" class="mt-1 text-xs text-sky-300">Queued / running</p>
+                            <p v-if="monitor.last_error_type" class="mt-1 max-w-48 text-xs text-amber-300">{{ errorLabels[monitor.last_error_type] ?? 'Check could not complete' }}</p>
                             <p v-if="monitor.is_paused" class="mt-1 text-xs text-slate-500">Last: {{ monitor.status }}</p>
                         </td>
                         <td class="whitespace-nowrap px-5 py-5">
@@ -51,6 +66,7 @@ function formatDate(value) {
                         <td class="whitespace-nowrap px-5 py-5 text-xs text-slate-400">{{ formatDate(monitor.last_checked_at) }}</td>
                         <td class="px-5 py-5">
                             <div class="flex justify-end gap-2" :aria-label="`Actions for ${monitor.name}`">
+                                <button :disabled="busy || monitor.is_paused || monitor.is_check_pending" class="whitespace-nowrap rounded-md border border-emerald-800 px-3 py-1.5 text-emerald-300 hover:bg-emerald-950 disabled:cursor-not-allowed disabled:opacity-50" @click="emit('check', monitor)">{{ monitor.is_check_pending ? 'Queued / running' : 'Check Now' }}</button>
                                 <button :disabled="busy" class="rounded-md border border-slate-700 px-3 py-1.5 hover:bg-slate-800 disabled:opacity-50" @click="emit('edit', monitor)">Edit</button>
                                 <button :disabled="busy" class="rounded-md border border-slate-700 px-3 py-1.5 hover:bg-slate-800 disabled:opacity-50" @click="emit('toggle', monitor)">{{ monitor.is_paused ? 'Resume' : 'Pause' }}</button>
                                 <button :disabled="busy" class="rounded-md border border-red-900 px-3 py-1.5 text-red-300 hover:bg-red-950 disabled:opacity-50" @click="emit('remove', monitor)">Delete</button>

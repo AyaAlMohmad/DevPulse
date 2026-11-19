@@ -28,7 +28,7 @@ function submit() {
 <template>
     <section aria-labelledby="monitor-form-title" class="mb-8 rounded-2xl border border-emerald-800 bg-slate-900 p-6">
         <h2 id="monitor-form-title" class="text-xl font-semibold">{{ monitor ? 'Edit monitor' : 'Add a monitor' }}</h2>
-        <p class="mt-2 text-sm text-slate-400">Save an HTTP or HTTPS endpoint. Automated health checks will be enabled in a later phase.</p>
+        <p class="mt-2 text-sm text-slate-400">Save a public HTTP or HTTPS endpoint on its standard port (80 or 443), without embedded credentials. Use Check Now to run a manual health check.</p>
         <form class="mt-6 space-y-5" @submit.prevent="submit">
             <div class="grid gap-5 md:grid-cols-2">
                 <FormField id="monitor-name" v-model="form.name" label="Monitor name" :error="form.errors.name" />

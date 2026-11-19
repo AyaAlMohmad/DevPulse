@@ -6,7 +6,7 @@ DevPulse is a lightweight monitoring SaaS designed to help independent developer
 
 Built with **Laravel**, **Inertia.js**, **Vue 3**, and **Tailwind CSS**, DevPulse is being developed around a backend-driven monitoring engine and a clear, interactive dashboard.
 
-> **Project status:** Early development. Session authentication and the Vue monitor-management dashboard are implemented, including CRUD, pause/resume, search, status filters, pagination, and summary cards. Automated checks, charts, live polling, and notifications are still planned; this is not yet a production-ready monitoring service.
+> **Project status:** Early development. Session authentication, the Vue monitor-management dashboard, and queued manual health checks are implemented. Scheduled checks, charts, live polling, and notifications are still planned; this is not yet a production-ready monitoring service.
 
 ## The Problem
 
@@ -82,23 +82,39 @@ Monitor endpoints use Laravel session authentication and CSRF protection. Reques
 - [x] Backend tests for CRUD, validation, ownership, and state transitions.
 - [x] Session authentication, Vue sign-in and registration pages, and an Inertia dashboard.
 - [x] Reusable dashboard layout, summary cards, monitor forms, and a paginated table with server-side filters.
+- [x] Queued manual health checks, Check Now, and manual result refresh.
+- [x] Public-destination validation, DNS pinning, transfer limits, and stale-result protection.
 
 ### Next Milestones
 
 - [ ] Password reset and email verification.
 - [ ] Response-time charts and automatic refresh.
-- [ ] Scheduled health checks and a manual check workflow.
+- [ ] Scheduled health checks.
 - [ ] Email or Discord downtime notifications.
-- [ ] Outgoing-request safeguards, timeout handling, and data-retention policies.
+- [ ] Data-retention policies and operational hardening.
 
 ## Monitoring Semantics
 
 - A newly created monitor starts as **unknown**, not up or down.
 - Pausing a monitor preserves its last-known health state.
 - Changing a monitor's URL resets its latest health summary while preserving historical check records.
-- The background-check phase will define successful HTTP status codes, timeout behavior, and redirect handling explicitly.
+- HTTP 2xx is up. HTTP, DNS, and connection failures are down; destinations blocked by safety rules remain unknown with a safe error category.
+- Checks accept public HTTP(S) endpoints on standard ports only, without embedded credentials or fragments. Redirects are not followed.
+- DNS resolution is bounded to 5 seconds in a PHP subprocess. HTTP connections have a 3-second connect timeout and a 10-second total timeout.
+- The response body is discarded with a 64 KiB limit. Bodies and exception diagnostics are never persisted.
+- All resolved addresses are validated, the selected IP is pinned through cURL, proxies are disabled, TLS verification is enabled, and each probe uses a fresh connection.
+- Database reservations and worker locks prevent overlapping checks. URL changes and pause/resume invalidate pending work; old results cannot overwrite a new configuration.
 
-Because DevPulse will request user-supplied URLs, **SSRF prevention is a requirement before outbound checks are enabled**. URL-format validation alone is not sufficient protection.
+### Running Manual Checks
+
+PHP cURL and permission to start PHP subprocesses are required. Apply migrations, then run the dedicated database queue worker:
+
+```sh
+php artisan migrate
+php artisan queue:work database --queue=monitor-checks --timeout=30
+```
+
+In the dashboard, select **Check Now**, then **Refresh results** after the worker processes the job. No scheduler or polling runs yet. If the worker is stopped, a pending reservation expires after five minutes and can be requested again after refreshing. The queue payload contains only a monitor ID and reservation token, not the endpoint URL.
 
 ## Development & Verification
 
