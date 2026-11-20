@@ -5,7 +5,6 @@ import AppLayout from '../Layouts/AppLayout.vue';
 import MonitorForm from '../Components/MonitorForm.vue';
 import MonitorTable from '../Components/MonitorTable.vue';
 import StatCard from '../Components/StatCard.vue';
-import CheckInstructions from '../Components/CheckInstructions.vue';
 import { translate } from '../translation.js';
 
 const props = defineProps({
@@ -20,6 +19,7 @@ const actionForm = useForm({});
 const filters = reactive({ ...props.filters });
 
 watch(() => props.filters, (value) => Object.assign(filters, value));
+
 
 function openForm(monitor = null) {
     editing.value = monitor;
@@ -85,7 +85,6 @@ function deleteMonitor(monitor) {
             <StatCard :label="$t('Avg response time')" :value="stats.average_response_time_ms === null ? '—' : $t(':value ms', { value: stats.average_response_time_ms })" :detail="$t('Latest measured responses of active monitors')" />
         </dl>
         <p class="mb-8 text-xs text-slate-400">{{ $t(':unknown active with unknown status · :paused paused. Statistics cover all your monitors, regardless of filters.', { unknown: stats.unknown, paused: stats.paused }) }}</p>
-        <CheckInstructions />
         <p v-if="actionForm.errors.check" role="alert" class="mb-6 rounded-lg border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-200">{{ actionForm.errors.check }}</p>
 
         <MonitorForm v-if="formOpen" :key="editing?.id ?? 'new'" :monitor="editing" @saved="closeForm" @cancel="closeForm" />

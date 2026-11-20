@@ -178,5 +178,13 @@
     "Redirects: :count": "Redirects: :count",
     "Checks do not use your browser session. Up to three safe redirects are followed. Protected access (401/403) does not confirm application health.": "Checks do not use your browser session. Up to three safe redirects are followed. Protected access (401/403) does not confirm application health.",
     "Response time includes DNS resolution and followed redirects.": "Response time includes DNS resolution and followed redirects.",
-    "Resolved destination changed; timing is not compared.": "Resolved destination changed; timing is not compared."
+    "Resolved destination changed; timing is not compared.": "Resolved destination changed; timing is not compared.",
+    "Timing breakdown": "Timing breakdown",
+    "DNS": "DNS",
+    "Connect": "Connect",
+    "TLS": "TLS",
+    "TTFB (first byte)": "TTFB (first byte)",
+    "Total": "Total",
+    "Hop :n": "Hop :n",
+    "Running checks… results refresh automatically.": "Running checks… results refresh automatically."
 }

@@ -11,7 +11,7 @@ class ResolveMonitorTarget
     /**
      * Create a new class instance.
      */
-    public function __construct(private ResolveHostAddresses $resolveHost)
+    public function __construct(private ResolveHostAddresses $resolveHost, private bool $allowPrivateTargets = false)
     {
         //
     }
@@ -37,7 +37,8 @@ class ResolveMonitorTarget
 
         if (! $literal && (! filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME)
             || preg_match('/\.[a-z][a-z0-9-]*\z/', $host) !== 1
-            || preg_match('/\.(localhost|local|internal|lan|home|test|invalid)\z/', $host) === 1)) {
+            || (! $this->allowPrivateTargets
+                && preg_match('/\.(localhost|local|internal|lan|home|test|invalid)\z/', $host) === 1))) {
             throw new DomainException('blocked_target');
         }
 
@@ -48,7 +49,8 @@ class ResolveMonitorTarget
         }
 
         foreach ($addresses as $address) {
-            if (! is_string($address) || ! $this->isPublicAddress($address)) {
+            if (! is_string($address) || filter_var($address, FILTER_VALIDATE_IP) === false
+                || (! $this->allowPrivateTargets && ! $this->isPublicAddress($address))) {
                 throw new DomainException('blocked_target');
             }
         }

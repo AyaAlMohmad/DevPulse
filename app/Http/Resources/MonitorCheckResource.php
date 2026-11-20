@@ -35,6 +35,7 @@ class MonitorCheckResource extends JsonResource
             'http_status' => $this->http_status,
             'response_time_ms' => $this->response_time_ms,
             'error_type' => $this->error_type,
+            'timings' => $this->timings,
             'checked_at' => $this->checked_at->toIso8601String(),
             'comparison' => [
                 'reason' => $reason,

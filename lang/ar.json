@@ -178,5 +178,13 @@
     "Redirects: :count": "عدد التحويلات: :count",
     "Checks do not use your browser session. Up to three safe redirects are followed. Protected access (401/403) does not confirm application health.": "الفحص لا يستخدم جلسة متصفحك. تُتبع ثلاثة تحويلات آمنة كحد أقصى. الوصول المحمي (401/403) لا يثبت صحة التطبيق.",
     "Response time includes DNS resolution and followed redirects.": "زمن الاستجابة يشمل حل DNS والتحويلات التي تمت متابعتها.",
-    "Resolved destination changed; timing is not compared.": "تغيّرت الوجهة النهائية؛ لا تُقارن أزمنة الاستجابة."
+    "Resolved destination changed; timing is not compared.": "تغيّرت الوجهة النهائية؛ لا تُقارن أزمنة الاستجابة.",
+    "Timing breakdown": "تفصيل الأزمنة",
+    "DNS": "DNS",
+    "Connect": "الاتصال",
+    "TLS": "TLS",
+    "TTFB (first byte)": "أول بايت (TTFB)",
+    "Total": "الإجمالي",
+    "Hop :n": "القفزة :n",
+    "Running checks… results refresh automatically.": "جارٍ تنفيذ الفحوصات… تُحدَّث النتائج تلقائياً."
 }

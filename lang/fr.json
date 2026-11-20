@@ -178,5 +178,13 @@
     "Redirects: :count": "Redirections : :count",
     "Checks do not use your browser session. Up to three safe redirects are followed. Protected access (401/403) does not confirm application health.": "Le contrôle n’utilise pas la session de votre navigateur. Il suit au maximum trois redirections sûres. Un accès protégé (401/403) ne confirme pas la santé de l’application.",
     "Response time includes DNS resolution and followed redirects.": "Le temps de réponse inclut la résolution DNS et les redirections suivies.",
-    "Resolved destination changed; timing is not compared.": "La destination finale a changé ; les temps ne sont pas comparés."
+    "Resolved destination changed; timing is not compared.": "La destination finale a changé ; les temps ne sont pas comparés.",
+    "Timing breakdown": "Detail des temps",
+    "DNS": "DNS",
+    "Connect": "Connexion",
+    "TLS": "TLS",
+    "TTFB (first byte)": "TTFB (premier octet)",
+    "Total": "Total",
+    "Hop :n": "Etape :n",
+    "Running checks… results refresh automatically.": "Vérifications en cours… les résultats se rafraîchissent automatiquement."
 }

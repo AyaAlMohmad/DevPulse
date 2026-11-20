@@ -2,7 +2,6 @@
 import { computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
-import CheckInstructions from '../../Components/CheckInstructions.vue';
 import CheckHistory from '../../Components/CheckHistory.vue';
 import StatusBadge from '../../Components/StatusBadge.vue';
 import StatCard from '../../Components/StatCard.vue';
@@ -16,6 +15,7 @@ function refresh() {
     form.clearErrors();
     router.reload({ only: ['monitor', 'checks', 'flash'], preserveScroll: true });
 }
+
 </script>
 
 <template>
@@ -47,7 +47,6 @@ function refresh() {
             <p dir="ltr" class="mt-2 break-all text-start">{{ current.last_final_url }}</p>
             <p class="mt-3 text-xs text-slate-400">{{ $t('Redirects: :count', { count: current.last_redirect_count ?? '—' }) }}</p>
         </div>
-        <CheckInstructions />
         <CheckHistory :checks="checks" :current-url="current.url" />
     </AppLayout>
 </template>

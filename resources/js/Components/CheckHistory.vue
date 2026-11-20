@@ -43,6 +43,14 @@ const reasons = {
                         <p class="mt-2 text-slate-400">{{ $t('Redirects: :count', { count: check.redirect_count ?? '—' }) }}</p>
                     </template>
                 </div>
+                <div v-if="check.timings?.length" class="mt-4 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs">
+                    <p class="mb-1 text-slate-400">{{ $t('Timing breakdown') }}</p>
+                    <div v-for="(hop, i) in check.timings" :key="i" class="mt-1">
+                        <p v-if="check.timings.length > 1" class="text-slate-500">{{ $t('Hop :n', { n: i + 1 }) }}</p>
+                        <p dir="ltr" class="break-all text-start text-slate-500">{{ hop.url }}</p>
+                        <p dir="ltr" class="text-start font-mono text-slate-300">{{ $t('DNS') }} {{ hop.dns_ms ?? '—' }}ms · {{ $t('Connect') }} {{ hop.connect_ms ?? '—' }}ms · {{ $t('TLS') }} {{ hop.tls_ms ?? '—' }}ms · {{ $t('TTFB (first byte)') }} {{ hop.ttfb_ms ?? '—' }}ms · {{ $t('Total') }} {{ hop.total_ms ?? '—' }}ms</p>
+                    </div>
+                </div>
                 <div class="mt-4 space-y-2 text-xs leading-6 text-slate-300">
                     <h3 class="font-medium text-slate-400">{{ $t('Changes since previous check') }}</h3>
                     <p v-if="check.comparison.reason">{{ $t(reasons[check.comparison.reason]) }}</p>

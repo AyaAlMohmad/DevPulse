@@ -46,9 +46,10 @@ class ProbeMonitorUrl
         $seen = [];
         $requested = false;
         $following = false;
-        $finish = function (string $status, ?string $error) use (&$httpStatus, &$finalUrl, &$redirects, &$requested, $started): array {
+        $timings = [];
+        $finish = function (string $status, ?string $error) use (&$httpStatus, &$finalUrl, &$redirects, &$requested, &$timings, $started): array {
             return $this->result($status, $httpStatus, $requested ? (int) round((hrtime(true) - $started) / 1_000_000) : null,
-                $error, $finalUrl, $redirects);
+                $error, $finalUrl, $redirects, $timings);
         };
 
         while (true) {
@@ -79,6 +80,7 @@ class ProbeMonitorUrl
             $finalUrl = (string) (new Uri($target['url']))->withQuery('')->withFragment('');
             $hop = $this->request($target, $remaining, $bytes);
             $httpStatus = $hop['http_status'];
+            $timings[] = $hop['timing'];
             if (in_array($httpStatus, [401, 403], true)) {
                 return $finish('unknown', 'access_restricted');
             }
@@ -123,6 +125,7 @@ class ProbeMonitorUrl
         $curlError = null;
         $error = null;
         $location = null;
+        $handlerStats = [];
         $sink = FnStream::decorate(Utils::streamFor(''), [
             'write' => function (string $chunk) use (&$bytes, &$tooLarge): int {
                 $bytes += strlen($chunk);
@@ -157,9 +160,10 @@ class ProbeMonitorUrl
                     CURLOPT_FORBID_REUSE => true,
                     CURLOPT_DNS_CACHE_TIMEOUT => 0,
                 ],
-                'on_stats' => function (TransferStats $stats) use (&$curlError): void {
+                'on_stats' => function (TransferStats $stats) use (&$curlError, &$handlerStats): void {
                     $data = $stats->getHandlerErrorData();
                     $curlError = is_int($data) ? $data : null;
+                    $handlerStats = $stats->getHandlerStats();
                 },
                 'on_headers' => function (ResponseInterface $response) use (&$httpStatus, &$tooLarge, &$bytes): void {
                     $httpStatus = $response->getStatusCode();
@@ -185,10 +189,30 @@ class ProbeMonitorUrl
             $sink->close();
         }
 
-        return ['http_status' => $httpStatus, 'error_type' => $error, 'location' => $location];
+        return ['http_status' => $httpStatus, 'error_type' => $error, 'location' => $location,
+            'timing' => $this->timing($target['url'], $handlerStats)];
+
     }
 
-    private function result(string $status, ?int $httpStatus, ?int $responseTime, ?string $error, ?string $finalUrl = null, int $redirectCount = 0): array
+    private function timing(string $url, array $stats): array
+    {
+        $ms = fn (string $key): ?int => isset($stats[$key]) ? (int) round($stats[$key] * 1000) : null;
+        $connect = $ms('connect_time');
+        $tls = isset($stats['appconnect_time']) && $stats['appconnect_time'] > 0
+            ? max(0, (int) round($stats['appconnect_time'] * 1000) - ($connect ?? 0))
+            : null;
+
+        return [
+            'url' => (string) (new Uri($url))->withQuery('')->withFragment(''),
+            'dns_ms' => $ms('namelookup_time'),
+            'connect_ms' => $connect,
+            'tls_ms' => $tls,
+            'ttfb_ms' => $ms('starttransfer_time'),
+            'total_ms' => $ms('total_time'),
+        ];
+    }
+
+    private function result(string $status, ?int $httpStatus, ?int $responseTime, ?string $error, ?string $finalUrl = null, int $redirectCount = 0, array $timings = []): array
     {
         return [
             'status' => $status,
@@ -197,6 +221,7 @@ class ProbeMonitorUrl
             'error_type' => $error,
             'final_url' => $finalUrl,
             'redirect_count' => $redirectCount,
+            'timings' => $timings === [] ? null : $timings,
         ];
     }
 }

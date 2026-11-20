@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Monitor;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -55,6 +56,11 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
             ],
+            'pending_checks' => fn () => $request->user() !== null && Monitor::query()
+                ->where('user_id', $request->user()->id)
+                ->whereNotNull('check_token')
+                ->where('check_requested_at', '>', now()->subSeconds(Monitor::CHECK_LEASE_SECONDS))
+                ->exists(),
             //
         ];
     }

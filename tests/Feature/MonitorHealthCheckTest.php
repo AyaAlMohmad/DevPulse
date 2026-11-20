@@ -77,6 +77,9 @@ class MonitorHealthCheckTest extends TestCase
         $this->assertNull($monitor->check_token);
         $this->assertSame(1, $monitor->checks()->count());
         $this->assertNull($monitor->checks()->sole()->error_type);
+        $timings = $monitor->checks()->sole()->timings;
+        $this->assertCount(1, $timings);
+        $this->assertSame('https://api.example.com/health', $timings[0]['url']);
         $this->assertTrue($monitor->next_check_at->isFuture());
     }
 
